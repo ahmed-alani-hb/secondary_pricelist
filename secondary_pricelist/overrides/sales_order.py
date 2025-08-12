@@ -73,6 +73,10 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
     """
     Apply secondary pricing to item following ERPNext's standard currency flow:
     Secondary Pricelist Currency → Company Base Currency → Sales Order Currency
+    
+    CORRECT FORMULA:
+    - Secondary to Company: secondary_rate × exchange_rate
+    - Company to Sales Order: company_rate × conversion_rate (NOT divide!)
     """
     if not secondary_pricelist:
         secondary_pricelist = sales_order.get("custom_secondary_pricelist")
@@ -95,6 +99,7 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
         original_rate = flt(secondary_price.get("price_list_rate"))
         
         # Step 1: Convert from secondary pricelist currency to company base currency
+        # EUR 40.85 → USD 47 (40.85 × 1.16)
         base_rate = convert_to_company_currency(
             rate=original_rate,
             from_currency=secondary_currency,
@@ -103,26 +108,38 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
         )
         
         # Step 2: Convert from company base currency to sales order currency
-        # ERPNext automatically handles this using conversion_rate
+        # USD 47 → IQD 65,799
+        # ERPNext conversion_rate = rate to convert FROM sales order currency TO company currency
+        # So: sales_order_rate = base_rate ÷ conversion_rate
         conversion_rate = flt(sales_order.conversion_rate) or 1.0
-        sales_order_rate = flt(base_rate / conversion_rate) if conversion_rate else base_rate
+        if conversion_rate > 0:
+            # conversion_rate = 0.000714286 means 1 IQD = 0.000714286 USD
+            # So: IQD_amount = USD_amount ÷ conversion_rate
+            sales_order_rate = flt(base_rate / conversion_rate)
+        else:
+            sales_order_rate = base_rate
         
         # Apply the rates following ERPNext's standard pattern
-        item.rate = sales_order_rate  # In Sales Order currency
-        item.price_list_rate = sales_order_rate  # In Sales Order currency
-        item.base_rate = base_rate  # In Company base currency
-        item.base_price_list_rate = base_rate  # In Company base currency
+        # rate and price_list_rate should be in Sales Order currency (IQD)
+        # base_rate and base_price_list_rate should be in Company currency (USD)
+        item.rate = sales_order_rate  # IQD 65,799
+        item.price_list_rate = sales_order_rate  # IQD 65,799
+        item.base_rate = base_rate  # USD 47
+        item.base_price_list_rate = base_rate  # USD 47
         
         # Add detailed comment to track secondary pricing with currency conversion info
-        conversion_info = ""
-        if secondary_currency != company_currency:
-            conversion_info = f" (Converted: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order.currency})"
-        else:
-            conversion_info = f" (Rate: {original_rate} {secondary_currency}, Sales Order: {sales_order_rate} {sales_order.currency})"
+        conversion_info = f" (Conversion: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order.currency})"
         
         item.add_comment("Info", 
             f"Price applied from secondary pricelist: {secondary_pricelist}"
             f"{conversion_info}")
+        
+        # Log the conversion for debugging
+        frappe.logger().info(
+            f"Secondary pricing applied: {original_rate} {secondary_currency} → "
+            f"{base_rate} {company_currency} → {sales_order_rate} {sales_order.currency} "
+            f"(conversion_rate: {conversion_rate})"
+        )
 
 def convert_to_company_currency(rate, from_currency, to_currency, transaction_date):
     """
@@ -137,7 +154,7 @@ def convert_to_company_currency(rate, from_currency, to_currency, transaction_da
         converted_rate = flt(rate * exchange_rate)
         
         frappe.logger().info(
-            f"Currency conversion to company base: {rate} {from_currency} → {converted_rate} {to_currency} "
+            f"Exchange rate conversion: {rate} {from_currency} → {converted_rate} {to_currency} "
             f"(Exchange rate: {exchange_rate})"
         )
         
@@ -243,6 +260,7 @@ def get_secondary_price(item_code, secondary_pricelist, primary_pricelist,
     company_currency = frappe.db.get_value("Company", company, "default_currency")
     
     # Step 1: Convert to company base currency
+    # EUR 40.85 → USD 47
     base_rate = convert_to_company_currency(
         rate=original_rate,
         from_currency=secondary_currency,
@@ -251,13 +269,18 @@ def get_secondary_price(item_code, secondary_pricelist, primary_pricelist,
     )
     
     # Step 2: Convert to sales order currency using conversion_rate
+    # USD 47 → IQD 65,799 (47 ÷ 0.000714286)
+    # conversion_rate = 0.000714286 means 1 IQD = 0.000714286 USD
     conversion_rate = flt(conversion_rate) or 1.0
-    sales_order_rate = flt(base_rate / conversion_rate) if conversion_rate else base_rate
+    if conversion_rate > 0:
+        sales_order_rate = flt(base_rate / conversion_rate)
+    else:
+        sales_order_rate = base_rate
     
     return {
-        "rate": sales_order_rate,  # In Sales Order currency
-        "base_rate": base_rate,    # In Company base currency
-        "original_rate": original_rate,  # In Secondary Pricelist currency
+        "rate": sales_order_rate,  # In Sales Order currency (IQD 65,799)
+        "base_rate": base_rate,    # In Company base currency (USD 47)
+        "original_rate": original_rate,  # In Secondary Pricelist currency (EUR 40.85)
         "currency_converted": secondary_currency != company_currency,
         "secondary_currency": secondary_currency,
         "company_currency": company_currency,
