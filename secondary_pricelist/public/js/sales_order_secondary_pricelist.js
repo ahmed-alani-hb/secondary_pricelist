@@ -32,6 +32,20 @@ frappe.ui.form.on('Sales Order', {
             frappe.msgprint(__('Secondary Price List cannot be the same as Primary Price List'));
             frm.set_value('custom_secondary_pricelist', '');
         }
+    },
+    
+    currency: function(frm) {
+        // Refresh secondary pricing when currency changes
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist && frm.doc.items) {
+            refresh_secondary_pricing(frm);
+        }
+    },
+    
+    conversion_rate: function(frm) {
+        // Refresh secondary pricing when conversion rate changes
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist && frm.doc.items) {
+            refresh_secondary_pricing(frm);
+        }
     }
 });
 
@@ -47,7 +61,7 @@ frappe.ui.form.on('Sales Order Item', {
 });
 
 function refresh_secondary_pricing(frm) {
-    // Refresh pricing for all items when secondary pricelist changes
+    // Refresh pricing for all items when secondary pricelist or currency changes
     frm.doc.items.forEach(item => {
         if (!item.rate || item.rate === 0) {
             check_and_apply_secondary_pricing(frm, item.doctype, item.name);
@@ -72,19 +86,34 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
                 primary_pricelist: frm.doc.selling_price_list,
                 uom: item.uom,
                 qty: item.qty,
-                transaction_date: frm.doc.transaction_date
+                transaction_date: frm.doc.transaction_date,
+                sales_order_currency: frm.doc.currency,
+                conversion_rate: frm.doc.conversion_rate,
+                company: frm.doc.company  // Pass company for base currency
             },
             callback: function(r) {
                 if (r.message && r.message.rate) {
+                    // Set both rate (Sales Order currency) and base_rate (Company currency)
                     frappe.model.set_value(cdt, cdn, 'rate', r.message.rate);
                     frappe.model.set_value(cdt, cdn, 'price_list_rate', r.message.rate);
                     
-                    // Show message about secondary pricing
+                    // ERPNext will automatically calculate base_rate using conversion_rate
+                    // But we can also set it explicitly to ensure consistency
+                    if (r.message.base_rate) {
+                        frappe.model.set_value(cdt, cdn, 'base_rate', r.message.base_rate);
+                        frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_rate);
+                    }
+                    
+                    // Show detailed message about secondary pricing with currency flow
+                    let message = __('Price applied from secondary pricelist: {0}', [frm.doc.custom_secondary_pricelist]);
+                    if (r.message.currency_converted) {
+                        message += '<br><small>' + r.message.exchange_info + '</small>';
+                    }
+                    
                     frappe.show_alert({
-                        message: __('Price applied from secondary pricelist: {0}', 
-                                  [frm.doc.custom_secondary_pricelist]),
+                        message: message,
                         indicator: 'blue'
-                    }, 3);
+                    }, 6);  // Show for 6 seconds to read conversion info
                 }
             }
         });
