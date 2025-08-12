@@ -44,14 +44,15 @@ def process_secondary_pricing(sales_order):
     if not primary_pricelist or not secondary_pricelist:
         return
     
-    # Get primary and secondary pricelist currencies
-    primary_currency = frappe.db.get_value("Price List", primary_pricelist, "currency")
+    # Get all relevant currencies
     secondary_currency = frappe.db.get_value("Price List", secondary_pricelist, "currency")
+    company = sales_order.get("company")
+    company_currency = frappe.db.get_value("Company", company, "default_currency")
     
     for item in sales_order.items:
         if should_apply_secondary_pricing(item, primary_pricelist):
             apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist, 
-                                          primary_currency, secondary_currency)
+                                          secondary_currency, company_currency)
 
 def should_apply_secondary_pricing(item, primary_pricelist):
     """
@@ -68,9 +69,10 @@ def should_apply_secondary_pricing(item, primary_pricelist):
     return not primary_price or flt(primary_price.get("price_list_rate", 0)) == 0
 
 def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None, 
-                                  primary_currency=None, secondary_currency=None):
+                                  secondary_currency=None, company_currency=None):
     """
-    Apply secondary pricing to a specific item
+    Apply secondary pricing to item following ERPNext's standard currency flow:
+    Secondary Pricelist Currency → Company Base Currency → Sales Order Currency
     """
     if not secondary_pricelist:
         secondary_pricelist = sales_order.get("custom_secondary_pricelist")
@@ -79,35 +81,76 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
         return
     
     # Get currencies if not provided
-    if not primary_currency:
-        primary_currency = frappe.db.get_value("Price List", 
-                                             sales_order.get("selling_price_list"), "currency")
     if not secondary_currency:
         secondary_currency = frappe.db.get_value("Price List", secondary_pricelist, "currency")
+    if not company_currency:
+        company = sales_order.get("company")
+        company_currency = frappe.db.get_value("Company", company, "default_currency")
     
     # Get price from secondary pricelist
     secondary_price = get_item_price_from_pricelist(item.item_code, secondary_pricelist,
                                                   item.uom, item.qty)
     
     if secondary_price and flt(secondary_price.get("price_list_rate", 0)) > 0:
-        rate = flt(secondary_price.get("price_list_rate"))
+        original_rate = flt(secondary_price.get("price_list_rate"))
         
-        # Convert currency if needed
-        if secondary_currency != primary_currency:
-            rate = convert_currency_rate(rate, secondary_currency, primary_currency, 
-                                       sales_order.transaction_date)
+        # Step 1: Convert from secondary pricelist currency to company base currency
+        base_rate = convert_to_company_currency(
+            rate=original_rate,
+            from_currency=secondary_currency,
+            to_currency=company_currency,
+            transaction_date=sales_order.transaction_date
+        )
         
-        # Apply the rate
-        item.rate = rate
-        item.price_list_rate = rate
-        item.base_rate = flt(rate * flt(sales_order.conversion_rate))
-        item.base_price_list_rate = flt(rate * flt(sales_order.conversion_rate))
+        # Step 2: Convert from company base currency to sales order currency
+        # ERPNext automatically handles this using conversion_rate
+        conversion_rate = flt(sales_order.conversion_rate) or 1.0
+        sales_order_rate = flt(base_rate / conversion_rate) if conversion_rate else base_rate
         
-        # Add comment to track secondary pricing
+        # Apply the rates following ERPNext's standard pattern
+        item.rate = sales_order_rate  # In Sales Order currency
+        item.price_list_rate = sales_order_rate  # In Sales Order currency
+        item.base_rate = base_rate  # In Company base currency
+        item.base_price_list_rate = base_rate  # In Company base currency
+        
+        # Add detailed comment to track secondary pricing with currency conversion info
+        conversion_info = ""
+        if secondary_currency != company_currency:
+            conversion_info = f" (Converted: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order.currency})"
+        else:
+            conversion_info = f" (Rate: {original_rate} {secondary_currency}, Sales Order: {sales_order_rate} {sales_order.currency})"
+        
         item.add_comment("Info", 
-            f"Price applied from secondary pricelist: {secondary_pricelist} "
-            f"(Original: {secondary_price.get('price_list_rate')} {secondary_currency}, "
-            f"Converted: {rate} {primary_currency})")
+            f"Price applied from secondary pricelist: {secondary_pricelist}"
+            f"{conversion_info}")
+
+def convert_to_company_currency(rate, from_currency, to_currency, transaction_date):
+    """
+    Convert rate from any currency to company base currency
+    """
+    if from_currency == to_currency:
+        return rate
+    
+    try:
+        # Use ERPNext's built-in exchange rate system to convert to company currency
+        exchange_rate = get_exchange_rate(from_currency, to_currency, transaction_date or nowdate())
+        converted_rate = flt(rate * exchange_rate)
+        
+        frappe.logger().info(
+            f"Currency conversion to company base: {rate} {from_currency} → {converted_rate} {to_currency} "
+            f"(Exchange rate: {exchange_rate})"
+        )
+        
+        return converted_rate
+    except Exception as e:
+        frappe.log_error(f"Currency conversion error from {from_currency} to {to_currency}: {str(e)}")
+        frappe.msgprint(
+            _("Could not convert from {0} to {1}. Please check exchange rate setup.").format(
+                from_currency, to_currency
+            ),
+            alert=True
+        )
+        return rate
 
 def get_item_price_from_pricelist(item_code, price_list, uom=None, qty=1):
     """
@@ -170,25 +213,12 @@ def is_price_valid(price_data):
         # If date validation fails, assume price is valid
         return True
 
-def convert_currency_rate(rate, from_currency, to_currency, transaction_date):
-    """
-    Convert rate from one currency to another
-    """
-    if from_currency == to_currency:
-        return rate
-    
-    try:
-        exchange_rate = get_exchange_rate(from_currency, to_currency, transaction_date)
-        return flt(rate * exchange_rate)
-    except Exception as e:
-        frappe.log_error(f"Currency conversion error: {str(e)}")
-        return rate
-
 @frappe.whitelist()
 def get_secondary_price(item_code, secondary_pricelist, primary_pricelist, 
-                       uom=None, qty=1, transaction_date=None):
+                       uom=None, qty=1, transaction_date=None, sales_order_currency=None, 
+                       conversion_rate=None, company=None):
     """
-    API method to get secondary price for client script
+    API method to get secondary price for client script following ERPNext's currency flow
     """
     # Check if price exists in primary pricelist first
     primary_price = get_item_price_from_pricelist(item_code, primary_pricelist, uom, qty)
@@ -202,20 +232,36 @@ def get_secondary_price(item_code, secondary_pricelist, primary_pricelist,
     if not secondary_price or flt(secondary_price.get("price_list_rate", 0)) == 0:
         return {"rate": 0}
     
-    rate = flt(secondary_price.get("price_list_rate"))
+    original_rate = flt(secondary_price.get("price_list_rate"))
     
-    # Handle currency conversion
-    primary_currency = frappe.db.get_value("Price List", primary_pricelist, "currency")
+    # Get currencies
     secondary_currency = frappe.db.get_value("Price List", secondary_pricelist, "currency")
     
-    if secondary_currency != primary_currency:
-        rate = convert_currency_rate(rate, secondary_currency, primary_currency, 
-                                   transaction_date or nowdate())
+    # Get company currency
+    if not company:
+        company = frappe.defaults.get_global_default("company")
+    company_currency = frappe.db.get_value("Company", company, "default_currency")
+    
+    # Step 1: Convert to company base currency
+    base_rate = convert_to_company_currency(
+        rate=original_rate,
+        from_currency=secondary_currency,
+        to_currency=company_currency,
+        transaction_date=transaction_date or nowdate()
+    )
+    
+    # Step 2: Convert to sales order currency using conversion_rate
+    conversion_rate = flt(conversion_rate) or 1.0
+    sales_order_rate = flt(base_rate / conversion_rate) if conversion_rate else base_rate
     
     return {
-        "rate": rate,
-        "original_rate": secondary_price.get("price_list_rate"),
-        "currency_converted": secondary_currency != primary_currency,
+        "rate": sales_order_rate,  # In Sales Order currency
+        "base_rate": base_rate,    # In Company base currency
+        "original_rate": original_rate,  # In Secondary Pricelist currency
+        "currency_converted": secondary_currency != company_currency,
         "secondary_currency": secondary_currency,
-        "primary_currency": primary_currency
+        "company_currency": company_currency,
+        "sales_order_currency": sales_order_currency,
+        "conversion_rate": conversion_rate,
+        "exchange_info": f"Flow: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order_currency or 'SO Currency'}"
     }
