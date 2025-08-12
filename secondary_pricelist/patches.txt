@@ -1,0 +1,2 @@
+# Patches for secondary_pricelist
+# Format: patch_module.patch_function
