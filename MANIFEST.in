@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include secondary_pricelist *.css
+recursive-include secondary_pricelist *.csv
+recursive-include secondary_pricelist *.html
+recursive-include secondary_pricelist *.ico
+recursive-include secondary_pricelist *.js
+recursive-include secondary_pricelist *.json
+recursive-include secondary_pricelist *.md
+recursive-include secondary_pricelist *.png
+recursive-include secondary_pricelist *.py
+recursive-include secondary_pricelist *.svg
+recursive-include secondary_pricelist *.txt
+recursive-exclude secondary_pricelist *.pyc

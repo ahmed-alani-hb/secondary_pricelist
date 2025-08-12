@@ -1,0 +1,39 @@
+.secondary-pricing-indicator {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.secondary-pricelist-section {
+    border: 1px solid #e9ecef;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.secondary-price-applied {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 8px;
+    margin: 5px 0;
+}
+
+/* Styling for secondary pricing indicators in forms */
+.form-section[data-fieldname="custom_enable_secondary_pricing"],
+.form-section[data-fieldname="custom_secondary_pricelist"] {
+    background-color: #f8f9fa;
+    border-left: 3px solid #007bff;
+    padding-left: 10px;
+}
+
+/* Alert styling for secondary price notifications */
+.alert.secondary-pricing-alert {
+    border-color: #007bff;
+    background-color: #e3f2fd;
+    color: #0d47a1;
+}
+
+/* Dashboard indicator styling */
+.indicator.secondary-pricing {
+    background-color: #007bff;
+    color: white;
+}

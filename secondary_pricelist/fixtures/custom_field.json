@@ -1,0 +1,23 @@
+[
+    {
+        "doctype": "Custom Field",
+        "dt": "Sales Order",
+        "fieldname": "custom_enable_secondary_pricing",
+        "fieldtype": "Check",
+        "label": "Enable Secondary Pricing",
+        "insert_after": "selling_price_list",
+        "default": "1",
+        "description": "Enable automatic fallback to secondary pricelist when primary pricelist has no price"
+    },
+    {
+        "doctype": "Custom Field", 
+        "dt": "Sales Order",
+        "fieldname": "custom_secondary_pricelist",
+        "fieldtype": "Link",
+        "label": "Secondary Price List",
+        "options": "Price List",
+        "insert_after": "custom_enable_secondary_pricing",
+        "depends_on": "custom_enable_secondary_pricing",
+        "description": "Fallback price list when primary price list has no pricing"
+    }
+]
