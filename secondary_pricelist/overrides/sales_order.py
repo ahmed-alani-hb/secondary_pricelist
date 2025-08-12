@@ -111,25 +111,27 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
 
 def get_item_price_from_pricelist(item_code, price_list, uom=None, qty=1):
     """
-    Get item price from specific pricelist
+    Get item price from specific pricelist - ERPNext v15 compatible
+    Based on actual field analysis: price_list_rate, uom, valid_from, valid_upto exist
+    min_qty and minimum_qty do NOT exist in this v15 installation
     """
     try:
-        # Use ERPNext's standard method to get item price
-        args = {
-            "item_code": item_code,
-            "price_list": price_list,
-            "uom": uom,
-            "qty": qty,
-            "transaction_date": nowdate()
-        }
+        # Only use fields that actually exist in ERPNext v15
+        fields = [
+            "price_list_rate",
+            "uom", 
+            "valid_from",
+            "valid_upto"
+        ]
         
+        # Query Item Price with only existing fields
         price_data = frappe.get_all("Item Price",
             filters={
                 "item_code": item_code,
                 "price_list": price_list,
                 "selling": 1
             },
-            fields=["price_list_rate", "uom", "min_qty", "valid_from", "valid_upto"],
+            fields=fields,
             order_by="valid_from desc, creation desc",
             limit=1
         )
@@ -150,19 +152,23 @@ def is_price_valid(price_data):
     """
     Check if price is valid based on dates
     """
-    from frappe.utils import getdate
-    
-    today = getdate()
-    valid_from = price_data.get("valid_from")
-    valid_upto = price_data.get("valid_upto")
-    
-    if valid_from and getdate(valid_from) > today:
-        return False
-    
-    if valid_upto and getdate(valid_upto) < today:
-        return False
-    
-    return True
+    try:
+        from frappe.utils import getdate
+        
+        today = getdate()
+        valid_from = price_data.get("valid_from")
+        valid_upto = price_data.get("valid_upto")
+        
+        if valid_from and getdate(valid_from) > today:
+            return False
+        
+        if valid_upto and getdate(valid_upto) < today:
+            return False
+        
+        return True
+    except:
+        # If date validation fails, assume price is valid
+        return True
 
 def convert_currency_rate(rate, from_currency, to_currency, transaction_date):
     """
