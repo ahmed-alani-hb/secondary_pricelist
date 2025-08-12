@@ -20,18 +20,8 @@ doc_events = {
     }
 }
 
-# Fixtures
-fixtures = [
-    {
-        "doctype": "Custom Field",
-        "filters": [
-            ["name", "in", [
-                "Sales Order-custom_secondary_pricelist",
-                "Sales Order-custom_enable_secondary_pricing"
-            ]]
-        ]
-    }
-]
+# Installation hooks
+after_install = "secondary_pricelist.install.after_install"
 
 # Include JS/CSS files
 app_include_js = [
@@ -41,3 +31,6 @@ app_include_js = [
 app_include_css = [
     "/assets/secondary_pricelist/css/secondary_pricelist.css"
 ]
+
+# Boot session
+boot_session = "secondary_pricelist.boot.boot_session"
