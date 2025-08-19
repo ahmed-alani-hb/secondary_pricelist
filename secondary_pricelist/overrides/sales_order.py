@@ -2,8 +2,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 from erpnext.setup.utils import get_exchange_rate
-from erpnext.stock.get_item_details import get_item_details
-from erpnext.stock.get_item_details import apply_pricing_rule as erpnext_apply_pricing_rule
+from erpnext.accounts.doctype.pricing_rule.pricing_rule import (
+    apply_pricing_rule as erpnext_apply_pricing_rule,
+)
 
 def before_validate(doc, method):
     """Process secondary pricing before validation"""
