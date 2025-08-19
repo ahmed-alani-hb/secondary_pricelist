@@ -37,7 +37,7 @@ def validate_sales_order_item(doc, method):
 @frappe.whitelist()
 def apply_pricing_rule(args, item=None, doc=None, **kwargs):
     """Override ERPNext pricing rule to fallback to secondary price list"""
-    result = erpnext_apply_pricing_rule(args, item=item, doc=doc, **kwargs)
+    result = erpnext_apply_pricing_rule(args, doc=doc, **kwargs)
 
     secondary_pricelist = None
     if doc and getattr(doc, "custom_enable_secondary_pricing", None):
