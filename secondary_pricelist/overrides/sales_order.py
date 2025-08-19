@@ -3,6 +3,7 @@ from frappe import _
 from frappe.utils import flt, nowdate
 from erpnext.setup.utils import get_exchange_rate
 from erpnext.stock.get_item_details import get_item_details
+from erpnext.stock.get_item_details import apply_pricing_rule as erpnext_apply_pricing_rule
 
 def before_validate(doc, method):
     """Process secondary pricing before validation"""
@@ -30,6 +31,43 @@ def before_sales_order_item_insert(doc, method):
 def validate_sales_order_item(doc, method):
     """Validate sales order item with secondary pricing"""
     pass
+
+
+@frappe.whitelist()
+def apply_pricing_rule(args, item=None, doc=None, **kwargs):
+    """Override ERPNext pricing rule to fallback to secondary price list"""
+    result = erpnext_apply_pricing_rule(args, item=item, doc=doc, **kwargs)
+
+    secondary_pricelist = None
+    if doc and getattr(doc, "custom_enable_secondary_pricing", None):
+        secondary_pricelist = getattr(doc, "custom_secondary_pricelist", None)
+    else:
+        secondary_pricelist = args.get("custom_secondary_pricelist")
+
+    if secondary_pricelist and not flt(result.get("price_list_rate")):
+        secondary_price = get_secondary_price(
+            args.get("item_code"),
+            secondary_pricelist,
+            args.get("price_list"),
+            args.get("uom"),
+            args.get("qty"),
+            args.get("transaction_date"),
+            args.get("currency"),
+            args.get("conversion_rate"),
+            args.get("company"),
+        )
+        if secondary_price.get("rate"):
+            result.update({
+                "price_list_rate": secondary_price.get("rate"),
+                "rate": secondary_price.get("rate"),
+            })
+            if secondary_price.get("base_rate"):
+                result.update({
+                    "base_price_list_rate": secondary_price.get("base_rate"),
+                    "base_rate": secondary_price.get("base_rate"),
+                })
+
+    return result
 
 def process_secondary_pricing(sales_order):
     """

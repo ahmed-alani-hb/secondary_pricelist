@@ -57,6 +57,29 @@ frappe.ui.form.on('Sales Order Item', {
                 check_and_apply_secondary_pricing(frm, cdt, cdn);
             }, 1000); // Delay to let primary pricing complete first
         }
+    },
+
+    qty: function(frm, cdt, cdn) {
+        // Reapply secondary pricing after quantity changes and pricing rules run
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            frappe.after_ajax(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            });
+        }
+    },
+
+    discount_percentage: function(frm, cdt, cdn) {
+        // Reapply secondary pricing when discount percentage is modified
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            check_and_apply_secondary_pricing(frm, cdt, cdn);
+        }
+    },
+
+    discount_amount: function(frm, cdt, cdn) {
+        // Reapply secondary pricing when discount amount is modified
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            check_and_apply_secondary_pricing(frm, cdt, cdn);
+        }
     }
 });
 
