@@ -1,3 +1,5 @@
+import json
+
 import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
@@ -41,6 +43,12 @@ def apply_pricing_rule(args, item=None, doc=None, **kwargs):
     allowed_keys = {"for_validate", "overwrite_price_list_rate"}
     filtered_kwargs = {k: kwargs[k] for k in allowed_keys if k in kwargs}
 
+    # The RPC layer may send args as a JSON string
+    if isinstance(args, str):
+        args = json.loads(args)
+
+    args = frappe._dict(args)
+
     result = erpnext_apply_pricing_rule(args, doc=doc, **filtered_kwargs)
 
     secondary_pricelist = None
@@ -49,28 +57,35 @@ def apply_pricing_rule(args, item=None, doc=None, **kwargs):
     else:
         secondary_pricelist = args.get("custom_secondary_pricelist")
 
-    if secondary_pricelist and not flt(result.get("price_list_rate")):
-        secondary_price = get_secondary_price(
-            args.get("item_code"),
-            secondary_pricelist,
-            args.get("price_list"),
-            args.get("uom"),
-            args.get("qty"),
-            args.get("transaction_date"),
-            args.get("currency"),
-            args.get("conversion_rate"),
-            args.get("company"),
-        )
-        if secondary_price.get("rate"):
-            result.update({
-                "price_list_rate": secondary_price.get("rate"),
-                "rate": secondary_price.get("rate"),
-            })
-            if secondary_price.get("base_rate"):
-                result.update({
-                    "base_price_list_rate": secondary_price.get("base_rate"),
-                    "base_rate": secondary_price.get("base_rate"),
-                })
+    if secondary_pricelist:
+        item_list = args.get("items") or []
+        for res, item_args in zip(result, item_list):
+            if not flt(res.get("price_list_rate")):
+                secondary_price = get_secondary_price(
+                    item_args.get("item_code"),
+                    secondary_pricelist,
+                    args.get("price_list"),
+                    item_args.get("uom"),
+                    item_args.get("qty"),
+                    args.get("transaction_date"),
+                    args.get("currency"),
+                    args.get("conversion_rate"),
+                    args.get("company"),
+                )
+                if secondary_price.get("rate"):
+                    res.update(
+                        {
+                            "price_list_rate": secondary_price.get("rate"),
+                            "rate": secondary_price.get("rate"),
+                        }
+                    )
+                    if secondary_price.get("base_rate"):
+                        res.update(
+                            {
+                                "base_price_list_rate": secondary_price.get("base_rate"),
+                                "base_rate": secondary_price.get("base_rate"),
+                            }
+                        )
 
     return result
 
