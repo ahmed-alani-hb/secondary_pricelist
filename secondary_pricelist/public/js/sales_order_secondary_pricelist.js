@@ -71,7 +71,7 @@ frappe.ui.form.on('Sales Order Item', {
 function refresh_secondary_pricing(frm) {
     // Refresh pricing for all items when secondary pricelist or currency changes
     frm.doc.items.forEach(item => {
-        if (!item.rate || item.rate === 0) {
+        if (!item.price_list_rate || item.price_list_rate === 0) {
             check_and_apply_secondary_pricing(frm, item.doctype, item.name);
         }
     });
@@ -84,8 +84,8 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
         return;
     }
     
-    // Only apply if no rate found in primary pricelist
-    if (!item.rate || item.rate === 0) {
+    // Only apply if no price found in primary pricelist
+    if (!item.price_list_rate || item.price_list_rate === 0) {
         frappe.call({
             method: 'secondary_pricelist.overrides.sales_order.get_secondary_price',
             args: {
