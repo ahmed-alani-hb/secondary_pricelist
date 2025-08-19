@@ -57,6 +57,14 @@ frappe.ui.form.on('Sales Order Item', {
                 check_and_apply_secondary_pricing(frm, cdt, cdn);
             }, 1000); // Delay to let primary pricing complete first
         }
+    },
+    qty: function(frm, cdt, cdn) {
+        // Re-apply secondary pricing when quantity changes
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            setTimeout(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            }, 1000); // Delay to let primary pricing complete first
+        }
     }
 });
 
