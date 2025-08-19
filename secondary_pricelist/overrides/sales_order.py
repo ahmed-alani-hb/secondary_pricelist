@@ -73,19 +73,29 @@ def apply_pricing_rule(args, item=None, doc=None, **kwargs):
                     args.get("company"),
                 )
                 if secondary_price.get("rate"):
-                    res.update(
-                        {
-                            "price_list_rate": secondary_price.get("rate"),
-                            "rate": secondary_price.get("rate"),
-                        }
-                    )
+                    secondary_rate = flt(secondary_price.get("rate"))
+                    res["price_list_rate"] = secondary_rate
                     if secondary_price.get("base_rate"):
-                        res.update(
-                            {
-                                "base_price_list_rate": secondary_price.get("base_rate"),
-                                "base_rate": secondary_price.get("base_rate"),
-                            }
-                        )
+                        res["base_price_list_rate"] = flt(secondary_price.get("base_rate"))
+
+                    discount_percentage = flt(res.get("discount_percentage") or item_args.get("discount_percentage") or 0)
+                    discount_amount = flt(res.get("discount_amount") or item_args.get("discount_amount") or 0)
+
+                    rate_after_discount = secondary_rate
+                    if discount_percentage:
+                        rate_after_discount = secondary_rate * (1 - discount_percentage / 100)
+                    elif discount_amount:
+                        rate_after_discount = secondary_rate - discount_amount
+                    res["rate"] = rate_after_discount
+
+                    if secondary_price.get("base_rate"):
+                        base_secondary_rate = flt(secondary_price.get("base_rate"))
+                        base_rate = base_secondary_rate
+                        if discount_percentage:
+                            base_rate = base_secondary_rate * (1 - discount_percentage / 100)
+                        elif discount_amount:
+                            base_rate = base_secondary_rate - (discount_amount * flt(args.get("conversion_rate") or 1))
+                        res["base_rate"] = base_rate
 
     return result
 
