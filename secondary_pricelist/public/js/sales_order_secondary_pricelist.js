@@ -120,17 +120,11 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
             },
             callback: function(r) {
                 if (r.message && r.message.rate) {
-                    const secondary_rate = frappe.utils.flt(r.message.rate);
-                    frappe.model.set_value(cdt, cdn, 'price_list_rate', secondary_rate);
+                    // Set price list rate (Sales Order currency)
+                    frappe.model.set_value(cdt, cdn, 'price_list_rate', r.message.rate);
 
-                    let final_rate = secondary_rate;
-                    if (item.discount_percentage) {
-                        final_rate = secondary_rate * (1 - frappe.utils.flt(item.discount_percentage) / 100);
-                    } else if (item.discount_amount) {
-                        final_rate = secondary_rate - frappe.utils.flt(item.discount_amount);
-                    }
-                    frappe.model.set_value(cdt, cdn, 'rate', final_rate);
-
+                    // ERPNext will automatically calculate rate and base_rate using conversion_rate
+                    // But we can also set base_price_list_rate explicitly to ensure consistency
                     if (r.message.base_rate) {
                         frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_rate);
                         let base_rate = frappe.utils.flt(r.message.base_rate);
