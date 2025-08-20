@@ -69,16 +69,20 @@ frappe.ui.form.on('Sales Order Item', {
     },
 
     discount_percentage: function(frm, cdt, cdn) {
-        // Reapply secondary pricing when discount percentage is modified
+        // Reapply secondary pricing after discount percentage updates and pricing rules run
         if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
-            check_and_apply_secondary_pricing(frm, cdt, cdn);
+            frappe.after_ajax(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            });
         }
     },
 
     discount_amount: function(frm, cdt, cdn) {
-        // Reapply secondary pricing when discount amount is modified
+        // Reapply secondary pricing after discount amount updates and pricing rules run
         if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
-            check_and_apply_secondary_pricing(frm, cdt, cdn);
+            frappe.after_ajax(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            });
         }
     }
 });
