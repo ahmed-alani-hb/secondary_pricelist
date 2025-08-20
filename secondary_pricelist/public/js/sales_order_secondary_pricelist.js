@@ -93,14 +93,12 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
             },
             callback: function(r) {
                 if (r.message && r.message.rate) {
-                    // Set both rate (Sales Order currency) and base_rate (Company currency)
-                    frappe.model.set_value(cdt, cdn, 'rate', r.message.rate);
+                    // Set price list rate (Sales Order currency)
                     frappe.model.set_value(cdt, cdn, 'price_list_rate', r.message.rate);
-                    
-                    // ERPNext will automatically calculate base_rate using conversion_rate
-                    // But we can also set it explicitly to ensure consistency
+
+                    // ERPNext will automatically calculate rate and base_rate using conversion_rate
+                    // But we can also set base_price_list_rate explicitly to ensure consistency
                     if (r.message.base_rate) {
-                        frappe.model.set_value(cdt, cdn, 'base_rate', r.message.base_rate);
                         frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_rate);
                     }
                     
