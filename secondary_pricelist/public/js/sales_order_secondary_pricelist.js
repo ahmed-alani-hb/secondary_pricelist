@@ -57,13 +57,40 @@ frappe.ui.form.on('Sales Order Item', {
                 check_and_apply_secondary_pricing(frm, cdt, cdn);
             }, 1000); // Delay to let primary pricing complete first
         }
+    },
+
+    qty: function(frm, cdt, cdn) {
+        // Reapply secondary pricing after quantity changes and pricing rules run
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            frappe.after_ajax(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            });
+        }
+    },
+
+    discount_percentage: function(frm, cdt, cdn) {
+        // Reapply secondary pricing after discount percentage updates and pricing rules run
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            frappe.after_ajax(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            });
+        }
+    },
+
+    discount_amount: function(frm, cdt, cdn) {
+        // Reapply secondary pricing after discount amount updates and pricing rules run
+        if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
+            frappe.after_ajax(() => {
+                check_and_apply_secondary_pricing(frm, cdt, cdn);
+            });
+        }
     }
 });
 
 function refresh_secondary_pricing(frm) {
     // Refresh pricing for all items when secondary pricelist or currency changes
     frm.doc.items.forEach(item => {
-        if (!item.rate || item.rate === 0) {
+        if (!item.price_list_rate || item.price_list_rate <= 0) {
             check_and_apply_secondary_pricing(frm, item.doctype, item.name);
         }
     });
@@ -76,8 +103,8 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
         return;
     }
     
-    // Only apply if no rate found in primary pricelist
-    if (!item.rate || item.rate === 0) {
+    // Only apply if no price found in primary pricelist
+    if (!item.price_list_rate || item.price_list_rate <= 0) {
         frappe.call({
             method: 'secondary_pricelist.overrides.sales_order.get_secondary_price',
             args: {
@@ -100,8 +127,15 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
                     // But we can also set base_price_list_rate explicitly to ensure consistency
                     if (r.message.base_rate) {
                         frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_rate);
+                        let base_rate = frappe.utils.flt(r.message.base_rate);
+                        if (item.discount_percentage) {
+                            base_rate = base_rate * (1 - frappe.utils.flt(item.discount_percentage) / 100);
+                        } else if (item.discount_amount) {
+                            base_rate = base_rate - (frappe.utils.flt(item.discount_amount) * frappe.utils.flt(frm.doc.conversion_rate));
+                        }
+                        frappe.model.set_value(cdt, cdn, 'base_rate', base_rate);
                     }
-                    
+
                     // Show detailed message about secondary pricing with currency flow
                     let message = __('Price applied from secondary pricelist: {0}', [frm.doc.custom_secondary_pricelist]);
                     if (r.message.currency_converted) {
