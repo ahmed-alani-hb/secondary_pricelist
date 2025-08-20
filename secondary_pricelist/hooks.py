@@ -34,3 +34,7 @@ app_include_css = [
 
 # Boot session
 boot_session = "secondary_pricelist.boot.boot_session"
+
+override_whitelisted_methods = {
+    "erpnext.accounts.doctype.pricing_rule.pricing_rule.apply_pricing_rule": "secondary_pricelist.overrides.sales_order.apply_pricing_rule",
+}

@@ -1,8 +1,12 @@
+import json
+
 import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 from erpnext.setup.utils import get_exchange_rate
-from erpnext.stock.get_item_details import get_item_details
+from erpnext.accounts.doctype.pricing_rule.pricing_rule import (
+    apply_pricing_rule as erpnext_apply_pricing_rule,
+)
 
 def before_validate(doc, method):
     """Process secondary pricing before validation"""
@@ -30,6 +34,70 @@ def before_sales_order_item_insert(doc, method):
 def validate_sales_order_item(doc, method):
     """Validate sales order item with secondary pricing"""
     pass
+
+
+@frappe.whitelist()
+def apply_pricing_rule(args, item=None, doc=None, **kwargs):
+    """Override ERPNext pricing rule to fallback to secondary price list"""
+    # Filter out unsupported keyword arguments like "cmd"
+    allowed_keys = {"for_validate", "overwrite_price_list_rate"}
+    filtered_kwargs = {k: kwargs[k] for k in allowed_keys if k in kwargs}
+
+    # The RPC layer may send args as a JSON string
+    if isinstance(args, str):
+        args = json.loads(args)
+
+    args = frappe._dict(args)
+
+    result = erpnext_apply_pricing_rule(args, doc=doc, **filtered_kwargs)
+
+    secondary_pricelist = None
+    if doc and getattr(doc, "custom_enable_secondary_pricing", None):
+        secondary_pricelist = getattr(doc, "custom_secondary_pricelist", None)
+    else:
+        secondary_pricelist = args.get("custom_secondary_pricelist")
+
+    if secondary_pricelist:
+        item_list = args.get("items") or []
+        for res, item_args in zip(result, item_list):
+            if not flt(res.get("price_list_rate")):
+                secondary_price = get_secondary_price(
+                    item_args.get("item_code"),
+                    secondary_pricelist,
+                    args.get("price_list"),
+                    item_args.get("uom"),
+                    item_args.get("qty"),
+                    args.get("transaction_date"),
+                    args.get("currency"),
+                    args.get("conversion_rate"),
+                    args.get("company"),
+                )
+                if secondary_price.get("rate"):
+                    secondary_rate = flt(secondary_price.get("rate"))
+                    res["price_list_rate"] = secondary_rate
+                    if secondary_price.get("base_rate"):
+                        res["base_price_list_rate"] = flt(secondary_price.get("base_rate"))
+
+                    discount_percentage = flt(res.get("discount_percentage") or item_args.get("discount_percentage") or 0)
+                    discount_amount = flt(res.get("discount_amount") or item_args.get("discount_amount") or 0)
+
+                    rate_after_discount = secondary_rate
+                    if discount_percentage:
+                        rate_after_discount = secondary_rate * (1 - discount_percentage / 100)
+                    elif discount_amount:
+                        rate_after_discount = secondary_rate - discount_amount
+                    res["rate"] = rate_after_discount
+
+                    if secondary_price.get("base_rate"):
+                        base_secondary_rate = flt(secondary_price.get("base_rate"))
+                        base_rate = base_secondary_rate
+                        if discount_percentage:
+                            base_rate = base_secondary_rate * (1 - discount_percentage / 100)
+                        elif discount_amount:
+                            base_rate = base_secondary_rate - (discount_amount * flt(args.get("conversion_rate") or 1))
+                        res["base_rate"] = base_rate
+
+    return result
 
 def process_secondary_pricing(sales_order):
     """
