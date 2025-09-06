@@ -119,20 +119,11 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
         else:
             sales_order_rate = base_rate
         
-        # Apply the rates following ERPNext's standard pattern
-        # rate and price_list_rate should be in Sales Order currency (IQD)
-        # base_rate and base_price_list_rate should be in Company currency (USD)
-        item.rate = sales_order_rate  # IQD 65,799
+        # Apply only price list rates; ERPNext will derive discounted rates
+        # price_list_rate should be in Sales Order currency (e.g. IQD)
+        # base_price_list_rate should be in Company currency (e.g. USD)
         item.price_list_rate = sales_order_rate  # IQD 65,799
-        item.base_rate = base_rate  # USD 47
         item.base_price_list_rate = base_rate  # USD 47
-        
-        # Add detailed comment to track secondary pricing with currency conversion info
-        conversion_info = f" (Conversion: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order.currency})"
-        
-        item.add_comment("Info", 
-            f"Price applied from secondary pricelist: {secondary_pricelist}"
-            f"{conversion_info}")
         
         # Log the conversion for debugging
         frappe.logger().info(
@@ -241,13 +232,13 @@ def get_secondary_price(item_code, secondary_pricelist, primary_pricelist,
     primary_price = get_item_price_from_pricelist(item_code, primary_pricelist, uom, qty)
     
     if primary_price and flt(primary_price.get("price_list_rate", 0)) > 0:
-        return {"rate": 0}  # Primary price exists, don't use secondary
+        return {"price_list_rate": 0, "base_price_list_rate": 0}  # Primary price exists, don't use secondary
     
     # Get secondary price
     secondary_price = get_item_price_from_pricelist(item_code, secondary_pricelist, uom, qty)
     
     if not secondary_price or flt(secondary_price.get("price_list_rate", 0)) == 0:
-        return {"rate": 0}
+        return {"price_list_rate": 0, "base_price_list_rate": 0}
     
     original_rate = flt(secondary_price.get("price_list_rate"))
     
@@ -273,18 +264,12 @@ def get_secondary_price(item_code, secondary_pricelist, primary_pricelist,
     # conversion_rate = 0.000714286 means 1 IQD = 0.000714286 USD
     conversion_rate = flt(conversion_rate) or 1.0
     if conversion_rate > 0:
-        sales_order_rate = flt(base_rate / conversion_rate)
+        price_list_rate = flt(base_rate / conversion_rate)
     else:
-        sales_order_rate = base_rate
-    
+        price_list_rate = base_rate
+
+    # Return only price list rates; ERPNext will calculate discounted rates
     return {
-        "rate": sales_order_rate,  # In Sales Order currency (IQD 65,799)
-        "base_rate": base_rate,    # In Company base currency (USD 47)
-        "original_rate": original_rate,  # In Secondary Pricelist currency (EUR 40.85)
-        "currency_converted": secondary_currency != company_currency,
-        "secondary_currency": secondary_currency,
-        "company_currency": company_currency,
-        "sales_order_currency": sales_order_currency,
-        "conversion_rate": conversion_rate,
-        "exchange_info": f"Flow: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order_currency or 'SO Currency'}"
+        "price_list_rate": price_list_rate,  # In Sales Order currency (e.g. IQD)
+        "base_price_list_rate": base_rate    # In Company base currency (e.g. USD)
     }
