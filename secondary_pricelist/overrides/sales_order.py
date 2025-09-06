@@ -125,13 +125,6 @@ def apply_secondary_pricing_to_item(item, sales_order, secondary_pricelist=None,
         item.price_list_rate = sales_order_rate  # IQD 65,799
         item.base_price_list_rate = base_rate  # USD 47
         
-        # Add detailed comment to track secondary pricing with currency conversion info
-        conversion_info = f" (Conversion: {original_rate} {secondary_currency} → {base_rate} {company_currency} → {sales_order_rate} {sales_order.currency})"
-        
-        item.add_comment("Info", 
-            f"Price applied from secondary pricelist: {secondary_pricelist}"
-            f"{conversion_info}")
-        
         # Log the conversion for debugging
         frappe.logger().info(
             f"Secondary pricing applied: {original_rate} {secondary_currency} → "
