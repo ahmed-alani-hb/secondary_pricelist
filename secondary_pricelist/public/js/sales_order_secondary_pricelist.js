@@ -101,7 +101,6 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
                     if (r.message.base_price_list_rate) {
                         frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_price_list_rate);
                     }
-
                     // Trigger ERPNext's rate calculations and refresh item row
                     frm.script_manager.trigger('price_list_rate', cdt, cdn);
                     frm.refresh_field('items');
