@@ -98,15 +98,13 @@ secondary_pricelist/
 ├── 📁 fixtures/                  # Custom field definitions
 ├── 📁 overrides/                 # Python business logic
 ├── 📁 public/                    # Client-side assets
-│   ├── css/                      # Custom styling
-│   └── js/                       # JavaScript integration
+│   └── css/                      # Custom styling
 └── 📁 templates/                 # Custom templates
 ```
 
 ### Key Components
 
 - **`overrides/sales_order.py`** - Core pricing logic and currency conversion
-- **`public/js/sales_order_secondary_pricelist.js`** - Client-side form handling
 - **`fixtures/custom_field.json`** - Custom field definitions
 - **`hooks.py`** - ERPNext integration hooks
 
@@ -126,13 +124,6 @@ Edit `public/css/secondary_pricelist.css` to modify:
 - Form field appearance
 - Alert styling
 - Dashboard indicators
-
-### Client Behavior
-
-Edit `public/js/sales_order_secondary_pricelist.js` to change:
-- User interaction flow
-- Validation messages
-- Real-time updates
 
 ## 🧪 Testing
 
