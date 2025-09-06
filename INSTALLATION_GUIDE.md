@@ -27,8 +27,6 @@ D:\secondary_pricelist\
     ├── public\
     │   ├── css\
     │   │   └── secondary_pricelist.css          # Custom CSS styles
-    │   └── js\
-    │       └── sales_order_secondary_pricelist.js # Client-side JavaScript
     ├── templates\
     │   ├── __init__.py                          # Python package marker
     │   └── pages\                               # Custom pages directory
@@ -101,14 +99,12 @@ D:\secondary_pricelist\
 - **config/desktop.py** - Desktop/module configuration
 - **fixtures/custom_field.json** - Custom field definitions
 - **overrides/sales_order.py** - Main Python logic for secondary pricing
-- **public/js/sales_order_secondary_pricelist.js** - Client-side JavaScript
 - **public/css/secondary_pricelist.css** - Custom styling
 
 ## Features Implemented
 
 ✅ **Automatic Fallback** - Searches secondary pricelist when primary has no price  
 ✅ **Currency Conversion** - Handles different currencies automatically  
-✅ **Real-time Updates** - Client-side integration for immediate pricing  
 ✅ **Validation** - Prevents configuration errors  
 ✅ **Audit Trail** - Tracks when secondary pricing is applied  
 ✅ **Standard Compatibility** - Works with existing ERPNext pricing features  
@@ -125,10 +121,6 @@ D:\secondary_pricelist\
    - If primary pricelist has no price, secondary pricelist price will be automatically applied
    - Currency conversion happens automatically if needed
 
-3. **Visual Indicators:**
-   - Blue indicator shows "Secondary Pricing Enabled" when active
-   - Alerts show when secondary pricing is applied to items
-   - Comments track pricing source in item history
 
 ## Configuration
 
@@ -210,21 +202,12 @@ Edit `D:\secondary_pricelist\secondary_pricelist\public\css\secondary_pricelist.
 - Modify form appearance
 - Add custom indicators
 
-### Client-side Behavior
-Edit `D:\secondary_pricelist\secondary_pricelist\public\js\sales_order_secondary_pricelist.js` to:
-- Change user interaction behavior
-- Add custom validations
-- Modify alert messages
-
 ## Module Structure Explanation
 
 ### Python Files
 - **hooks.py** - Registers event handlers and includes assets
 - **sales_order.py** - Contains all server-side logic
 - **desktop.py** - Configures module appearance in ERPNext
-
-### JavaScript Files
-- **sales_order_secondary_pricelist.js** - Handles client-side form behavior
 
 ### Configuration Files
 - **custom_field.json** - Defines custom fields to be created

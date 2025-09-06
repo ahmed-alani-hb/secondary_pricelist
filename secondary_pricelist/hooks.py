@@ -23,11 +23,7 @@ doc_events = {
 # Installation hooks
 after_install = "secondary_pricelist.install.after_install"
 
-# Include JS/CSS files
-app_include_js = [
-    "/assets/secondary_pricelist/js/sales_order_secondary_pricelist.js"
-]
-
+# Include CSS files
 app_include_css = [
     "/assets/secondary_pricelist/css/secondary_pricelist.css"
 ]
