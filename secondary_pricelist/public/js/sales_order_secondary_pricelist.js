@@ -53,9 +53,10 @@ frappe.ui.form.on('Sales Order Item', {
     item_code: function(frm, cdt, cdn) {
         // Trigger secondary pricing check after item selection
         if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
-            setTimeout(() => {
+            // Ensure primary pricing logic finishes first
+            frappe.after_ajax(() => {
                 check_and_apply_secondary_pricing(frm, cdt, cdn);
-            }, 1000); // Delay to let primary pricing complete first
+            });
         }
     }
 });
@@ -92,28 +93,23 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
                 company: frm.doc.company  // Pass company for base currency
             },
             callback: function(r) {
-                if (r.message && r.message.rate) {
-                    // Set both rate (Sales Order currency) and base_rate (Company currency)
-                    frappe.model.set_value(cdt, cdn, 'rate', r.message.rate);
-                    frappe.model.set_value(cdt, cdn, 'price_list_rate', r.message.rate);
-                    
-                    // ERPNext will automatically calculate base_rate using conversion_rate
-                    // But we can also set it explicitly to ensure consistency
-                    if (r.message.base_rate) {
-                        frappe.model.set_value(cdt, cdn, 'base_rate', r.message.base_rate);
-                        frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_rate);
+                if (r.message && r.message.price_list_rate) {
+                    // Set price_list_rate (Sales Order currency)
+                    frappe.model.set_value(cdt, cdn, 'price_list_rate', r.message.price_list_rate);
+
+                    // Set base_price_list_rate (Company currency) if provided
+                    if (r.message.base_price_list_rate) {
+                        frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_price_list_rate);
                     }
-                    
-                    // Show detailed message about secondary pricing with currency flow
-                    let message = __('Price applied from secondary pricelist: {0}', [frm.doc.custom_secondary_pricelist]);
-                    if (r.message.currency_converted) {
-                        message += '<br><small>' + r.message.exchange_info + '</small>';
-                    }
-                    
+
+                    // Trigger ERPNext's rate calculations and refresh item row
+                    frm.script_manager.trigger('price_list_rate', cdt, cdn);
+                    frm.refresh_field('items');
+
                     frappe.show_alert({
-                        message: message,
+                        message: __('Price applied from secondary pricelist: {0}', [frm.doc.custom_secondary_pricelist]),
                         indicator: 'blue'
-                    }, 6);  // Show for 6 seconds to read conversion info
+                    }, 6);
                 }
             }
         });
