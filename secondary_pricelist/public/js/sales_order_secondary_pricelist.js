@@ -53,9 +53,10 @@ frappe.ui.form.on('Sales Order Item', {
     item_code: function(frm, cdt, cdn) {
         // Trigger secondary pricing check after item selection
         if (frm.doc.custom_enable_secondary_pricing && frm.doc.custom_secondary_pricelist) {
-            setTimeout(() => {
+            // Ensure primary pricing logic finishes first
+            frappe.after_ajax(() => {
                 check_and_apply_secondary_pricing(frm, cdt, cdn);
-            }, 1000); // Delay to let primary pricing complete first
+            });
         }
     }
 });
@@ -100,8 +101,10 @@ function check_and_apply_secondary_pricing(frm, cdt, cdn) {
                     if (r.message.base_price_list_rate) {
                         frappe.model.set_value(cdt, cdn, 'base_price_list_rate', r.message.base_price_list_rate);
                     }
+                    // Trigger ERPNext's rate calculations and refresh item row
+                    frm.script_manager.trigger('price_list_rate', cdt, cdn);
+                    frm.refresh_field('items');
 
-                    // ERPNext will derive rate and base_rate from price list rates
                     frappe.show_alert({
                         message: __('Price applied from secondary pricelist: {0}', [frm.doc.custom_secondary_pricelist]),
                         indicator: 'blue'
