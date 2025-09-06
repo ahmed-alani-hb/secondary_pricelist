@@ -58,23 +58,23 @@ frappe.ui.form.on('Sales Order Item', {
                 check_and_apply_secondary_pricing(frm, cdt, cdn);
             }, 500); // 500ms delay to allow primary pricing to complete
         }
-    },
+    }
     
     // Also trigger on price_list_rate change in case primary pricing sets it to 0
-    price_list_rate: function(frm, cdt, cdn) {
-        let item = locals[cdt][cdn];
+    //price_list_rate: function(frm, cdt, cdn) {
+    //    let item = locals[cdt][cdn];
         
         // Only trigger if secondary pricing is enabled and price_list_rate is 0 or empty
-        if (frm.doc.custom_enable_secondary_pricing && 
-            frm.doc.custom_secondary_pricelist && 
-            item.item_code &&
-            (!item.price_list_rate || item.price_list_rate === 0)) {
-            
-            setTimeout(() => {
-                check_and_apply_secondary_pricing(frm, cdt, cdn);
-            }, 500); // Shorter delay since we're already in the pricing flow
-        }
-    }
+    //    if (frm.doc.custom_enable_secondary_pricing && 
+    //        frm.doc.custom_secondary_pricelist && 
+    //        item.item_code &&
+    //        (!item.price_list_rate || item.price_list_rate === 0)) {
+    //        
+    //        setTimeout(() => {
+    //            check_and_apply_secondary_pricing(frm, cdt, cdn);
+    //        }, 500); // Shorter delay since we're already in the pricing flow
+    //    }
+    //}
 });
 
 function refresh_secondary_pricing(frm) {
