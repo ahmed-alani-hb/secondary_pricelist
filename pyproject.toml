@@ -1,0 +1,18 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "secondary-pricelist"
+version = "1.0.0"
+description = "Adds secondary pricelist functionality to Sales Order"
+authors = [
+    {name = "Your Company", email = "support@yourcompany.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "frappe",
+    "erpnext"
+]
