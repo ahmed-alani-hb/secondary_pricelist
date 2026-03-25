@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: secondary_pricelist
+Version: 1.0.0
+Summary: Adds secondary pricelist functionality to Sales Order
+Author: Your Company
+Author-email: support@yourcompany.com
+Requires-Dist: frappe
+Requires-Dist: erpnext
+Dynamic: author
+Dynamic: author-email
+Dynamic: requires-dist
+Dynamic: summary
