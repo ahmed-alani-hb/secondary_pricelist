@@ -3,7 +3,7 @@ requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "secondary-pricelist"
+name = "secondary_pricelist"
 version = "1.0.0"
 description = "Adds secondary pricelist functionality to Sales Order"
 authors = [
